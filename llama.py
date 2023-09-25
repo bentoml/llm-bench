@@ -150,7 +150,8 @@ def tokenize(text):
 class MetricsCollector:
     def __init__(self):
         self.start_time = math.floor(time.time())
-        self.word_bucket = collections.defaultdict(int)
+        self.response_word_bucket = collections.defaultdict(int)
+        self.response_head_latency_bucket = collections.defaultdict(int)
         self.on_going_requests = 0
         self.request_bucket = collections.defaultdict(int)
         self.total_requests = 0
@@ -158,10 +159,13 @@ class MetricsCollector:
         self.status_bucket = collections.defaultdict(int)
 
     def collect_response_chunk(self, chunk: str):
-        self.word_bucket[math.floor(time.time())] += len(tokenize(chunk))
+        self.response_word_bucket[math.floor(time.time())] += len(tokenize(chunk))
 
     def collect_response_status(self, status):
         self.status_bucket[status] += 1
+
+    def collect_response_head_latency(self, latency):
+        self.response_head_latency_bucket[math.floor(time.time())] += latency
 
     @contextlib.contextmanager
     def collect_http_request(self):
@@ -184,11 +188,12 @@ class MetricsCollector:
             await asyncio.sleep(time_window)
             now = math.floor(time.time())
             print(f"Time: {now - self.start_time}")
-            print(f"Requests/s: {sum(self.request_bucket[i] for i in range(now - time_window, now)) / time_window}")
-            print(f"Words/s: {sum(self.word_bucket[i] for i in range(now - time_window, now)) / time_window}")
-            print(f"Ongoing requests: {self.on_going_requests}")
-            print(f"Ongoing users: {self.on_going_users}")
-            print(f"Total requests: {self.total_requests}")
+            print(f"Active Users: {self.on_going_users}")
+            print(f"Request/s: {sum(self.request_bucket[i] for i in range(now - time_window, now)) / time_window}")
+            print(f"Total Requests: {self.total_requests}")
+            print(f"Active Requests: {self.on_going_requests}")
+            print(f"Response Head Latency: {sum(self.response_head_latency_bucket[i] for i in range(now - time_window, now)) / time_window}")
+            print(f"Response Words/s: {sum(self.response_word_bucket[i] for i in range(now - time_window, now)) / time_window}")
             print(f"Status: {self.status_bucket}")
             print()
 
@@ -202,8 +207,10 @@ async def start_user(generate_prompt, rest, collector: MetricsCollector):
                 url, headers, data = make_request(prompt)
                 collector.total_requests += 1
                 with collector.collect_http_request():
+                    req_start = time.time()
                     async with session.post(url, headers=headers, data=data) as response:
                         collector.collect_response_status(response.status)
+                        collector.collect_response_head_latency(time.time() - req_start)
                         try:
                             if response.status != 200:
                                 continue
