@@ -3,7 +3,8 @@ import asyncio
 
 
 class UserDef:
-    BASE_URL = "http://llama27bchat-org-ss-org-1--aws-us-east-1.mt2.bentoml.ai"
+    # BASE_URL = "http://llama27bchat-org-ss-org-1--aws-us-east-1.mt2.bentoml.ai"
+    BASE_URL = "http://184.105.5.107:3000"
 
     @classmethod
     def ping_url(cls):
@@ -23,7 +24,7 @@ class UserDef:
         headers = {"accept": "application/json", "Content-Type": "application/json"}
         config = (
             openllm.AutoConfig.for_model("llama")
-            .model_construct_env(max_new_tokens=20, top_p=0.21)
+            .model_construct_env(max_new_tokens=40, top_p=0.21)
             .model_dump()
         )
         data = {"prompt": prompt, "llm_config": config, "adapter_name": None}

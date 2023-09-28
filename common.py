@@ -304,8 +304,8 @@ def get_prompt_set(min_input_length=0, max_input_length=500):
     dataset = [json.loads(line) for line in raw_dataset.iter_lines()]
     tokenizer = get_tokenizer()
     for d in dataset:
-        d["input_tokens"] = len(tokenizer(d["instruction"])["input_ids"])
-        d["output_tokens"] = len(tokenizer(d["response"])["input_ids"])
+        d["input_tokens"] = len(tokenizer(d["instruction"]))
+        d["output_tokens"] = len(tokenizer(d["response"]))
     return [
         d["instruction"]
         for d in dataset
