@@ -81,7 +81,7 @@ class MetricsCollector:
             if latency_bucket:
                 print(f"Response Latency: {np.mean(latency_bucket)}")
             print(
-                f"Response Words/s: {sum(self.response_word_bucket[i] for i in range(now - time_window, now)) / time_window}"
+                f"Response Tokens/s: {sum(self.response_word_bucket[i] for i in range(now - time_window, now)) / time_window}"
             )
             print(f"Status: {self.status_bucket}")
             print()
