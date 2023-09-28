@@ -297,11 +297,23 @@ def get_prompt_set(min_input_length=0, max_input_length=500):
     """
     import json
     import requests
+    import os
 
-    raw_dataset = requests.get(
-        "https://huggingface.co/datasets/databricks/databricks-dolly-15k/resolve/main/databricks-dolly-15k.jsonl"
-    )
-    dataset = [json.loads(line) for line in raw_dataset.iter_lines()]
+    # check if the dataset is cached
+    if os.path.exists("databricks-dolly-15k.jsonl"):
+        print("Loading cached dataset")
+        with open("databricks-dolly-15k.jsonl", "r") as f:
+            dataset = [json.loads(line) for line in f.readlines()]
+    else:
+        print("Downloading dataset")
+        raw_dataset = requests.get(
+            "https://huggingface.co/datasets/databricks/databricks-dolly-15k/resolve/main/databricks-dolly-15k.jsonl"
+        )
+        content = raw_dataset.content
+        open("databricks-dolly-15k.jsonl", "wb").write(content)
+        dataset = [json.loads(line) for line in content.decode().split("\n")]
+        print("Dataset downloaded")
+
     tokenizer = get_tokenizer()
     for d in dataset:
         d["input_tokens"] = len(tokenizer(d["instruction"]))
