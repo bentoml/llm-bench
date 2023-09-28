@@ -9,7 +9,6 @@ import contextlib
 import math
 
 
-
 class MetricsCollector:
     def __init__(self, user_def, ping_latency=0.0):
         self.start_time = math.floor(time.time())
@@ -31,7 +30,9 @@ class MetricsCollector:
         self.status_bucket[status] += 1
 
     def collect_response_head_latency(self, latency):
-        self.response_head_latency_bucket[math.floor(time.time())] += [latency - self.ping_latency]
+        self.response_head_latency_bucket[math.floor(time.time())] += [
+            latency - self.ping_latency
+        ]
 
     @contextlib.contextmanager
     def collect_http_request(self):
@@ -40,7 +41,9 @@ class MetricsCollector:
         yield
         self.on_going_requests -= 1
         self.response_bucket[math.floor(time.time())] += 1
-        self.response_latency_bucket[math.floor(time.time())] += [time.time() - start_time - self.ping_latency]
+        self.response_latency_bucket[math.floor(time.time())] += [
+            time.time() - start_time - self.ping_latency
+        ]
 
     @contextlib.contextmanager
     def collect_user(self):
@@ -49,27 +52,38 @@ class MetricsCollector:
         self.on_going_users -= 1
 
     async def report_loop(self, time_window=5):
-        '''
+        """
         Each bucket is in 1s. This function will report the avg metrics in the past time_window seconds.
-        '''
+        """
         while True:
             await asyncio.sleep(time_window)
             now = math.floor(time.time())
             print(f"Time: {now - self.start_time}")
             print(f"Active Users: {self.on_going_users}")
-            print(f"Request/s: {sum(self.response_bucket[i] for i in range(now - time_window, now)) / time_window}")
+            print(
+                f"Request/s: {sum(self.response_bucket[i] for i in range(now - time_window, now)) / time_window}"
+            )
             print(f"Total Requests: {self.total_requests}")
             print(f"Active Requests: {self.on_going_requests}")
-            latency_bucket = [j for i in range(now - time_window, now) for j in self.response_head_latency_bucket[i]]
+            latency_bucket = [
+                j
+                for i in range(now - time_window, now)
+                for j in self.response_head_latency_bucket[i]
+            ]
             if latency_bucket:
                 print(f"Response Head Latency: {np.mean(latency_bucket)}")
-            latency_bucket = [j for i in range(now - time_window, now) for j in self.response_latency_bucket[i]]
+            latency_bucket = [
+                j
+                for i in range(now - time_window, now)
+                for j in self.response_latency_bucket[i]
+            ]
             if latency_bucket:
                 print(f"Response Latency: {np.mean(latency_bucket)}")
-            print(f"Response Words/s: {sum(self.response_word_bucket[i] for i in range(now - time_window, now)) / time_window}")
+            print(
+                f"Response Words/s: {sum(self.response_word_bucket[i] for i in range(now - time_window, now)) / time_window}"
+            )
             print(f"Status: {self.status_bucket}")
             print()
-
 
 
 def linear_regression(x, y):
@@ -80,7 +94,13 @@ def linear_regression(x, y):
 
 
 class UserSpawner:
-    def __init__(self, user_def, collector: MetricsCollector, target_user_count=None, target_time=None):
+    def __init__(
+        self,
+        user_def,
+        collector: MetricsCollector,
+        target_user_count=None,
+        target_time=None,
+    ):
         self.target_user_count = 1 if target_user_count is None else target_user_count
         self.target_time = time.time() + 10 if target_time is None else target_time
 
@@ -105,20 +125,29 @@ class UserSpawner:
             try:
                 async with aiohttp.ClientSession(cookie_jar=cookie_jar) as session:
                     while True:
-                        prompt = self.user_def.generate_prompt()
-                        url, headers, data = self.user_def.make_request(prompt)
+                        url, headers, data = self.user_def.make_request()
                         self.data_collector.total_requests += 1
                         with self.data_collector.collect_http_request():
                             req_start = time.time()
-                            async with session.post(url, headers=headers, data=data) as response:
-                                self.data_collector.collect_response_status(response.status)
-                                self.data_collector.collect_response_head_latency(time.time() - req_start)
+                            async with session.post(
+                                url,
+                                headers=headers,
+                                data=data,
+                            ) as response:
+                                self.data_collector.collect_response_status(
+                                    response.status
+                                )
+                                self.data_collector.collect_response_head_latency(
+                                    time.time() - req_start
+                                )
                                 try:
                                     if response.status != 200:
                                         continue
                                     async for data, end_of_http_chunk in response.content.iter_chunks():
                                         result = self.user_def.parse_response(data)
-                                        self.data_collector.collect_response_chunk(result)
+                                        self.data_collector.collect_response_chunk(
+                                            result
+                                        )
                                         if not end_of_http_chunk:
                                             break
                                 except Exception as e:
@@ -146,29 +175,41 @@ class UserSpawner:
                 await asyncio.sleep(0.1)
             elif current_users < self.target_user_count:
                 self.spawn_user()
-                sleep_time = max((self.target_time - time.time()) / (self.target_user_count - current_users), 0)
+                sleep_time = max(
+                    (self.target_time - time.time())
+                    / (self.target_user_count - current_users),
+                    0,
+                )
                 await asyncio.sleep(sleep_time)
             elif current_users > self.target_user_count:
                 self.user_list.pop().cancel()
-                sleep_time = max((time.time() - self.target_time) / (current_users - self.target_user_count), 0)
+                sleep_time = max(
+                    (time.time() - self.target_time)
+                    / (current_users - self.target_user_count),
+                    0,
+                )
                 await asyncio.sleep(sleep_time)
 
-
     async def aimd_loop(
-            self,
-            adjust_interval=5,
-            sampling_interval=5,
-            ss_delta=1,
+        self,
+        adjust_interval=5,
+        sampling_interval=5,
+        ss_delta=1,
     ):
-        '''
+        """
         Detect a suitable number of users to maximize the words/s.
-        '''
+        """
         while True:
             while True:
                 # slow start
                 now = math.floor(time.time())
-                words_per_seconds = [self.data_collector.response_word_bucket[i] for i in range(now - sampling_interval, now)]
-                slope = linear_regression(range(len(words_per_seconds)), words_per_seconds)[0]
+                words_per_seconds = [
+                    self.data_collector.response_word_bucket[i]
+                    for i in range(now - sampling_interval, now)
+                ]
+                slope = linear_regression(
+                    range(len(words_per_seconds)), words_per_seconds
+                )[0]
                 if slope >= -0.01:
                     # throughput is increasing
                     cwnd = self.current_user_count
@@ -194,9 +235,9 @@ class UserSpawner:
 async def start_benchmark_session(user_def):
     # arg parsing
     parser = argparse.ArgumentParser(description="Benchmark")
-    parser.add_argument('--max_users', type=int, default=None)
-    parser.add_argument('--session_time', type=float, default=None)
-    parser.add_argument('--ping_correction', action='store_true')
+    parser.add_argument("--max_users", type=int, default=None)
+    parser.add_argument("--session_time", type=float, default=None)
+    parser.add_argument("--ping_correction", action="store_true")
     args = parser.parse_args()
 
     # ping server
@@ -216,8 +257,12 @@ async def start_benchmark_session(user_def):
     print(f"Ping latency: {ping_latency}. ping correction: {args.ping_correction}")
 
     # init
-    collector = MetricsCollector(user_def, ping_latency - 0.005 if args.ping_correction else 0)
-    user_spawner = UserSpawner(user_def, collector, args.max_users, target_time=time.time() + 20)
+    collector = MetricsCollector(
+        user_def, ping_latency - 0.005 if args.ping_correction else 0
+    )
+    user_spawner = UserSpawner(
+        user_def, collector, args.max_users, target_time=time.time() + 20
+    )
     asyncio.create_task(user_spawner.spawner_loop())
     asyncio.create_task(collector.report_loop())
     if args.max_users is None:

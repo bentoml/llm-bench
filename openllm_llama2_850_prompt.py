@@ -113,17 +113,26 @@ from openllm_llama2_20_prompt import UserDef as BaseUserDef
 
 
 class UserDef(BaseUserDef):
-    @staticmethod
-    def generate_prompt():
+    @classmethod
+    def make_request(cls):
+        import openllm
+        import json
         import random
 
-        from openllm_llama2_20_prompt import PROMPTS
+        prompt = PREFIX + random.choice(cls.PROMPTS)
 
-        return PREFIX + random.choice(PROMPTS)
+        headers = {"accept": "application/json", "Content-Type": "application/json"}
+        config = (
+            openllm.AutoConfig.for_model("llama")
+            .model_construct_env(max_new_tokens=20, top_p=0.21)
+            .model_dump()
+        )
+        data = {"prompt": prompt, "llm_config": config, "adapter_name": None}
+        url = f"{cls.BASE_URL}/v1/generate_stream"
+        return url, headers, json.dumps(data)
 
 
 if __name__ == "__main__":
-
     import asyncio
     from common import start_benchmark_session
 

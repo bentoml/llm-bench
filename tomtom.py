@@ -11,11 +11,10 @@ class UserDef(BaseUserDef):
     # BASE_URL = f'http://45.77.229.137:3000/query'  # A100
 
     @classmethod
-    def ping_url(cls):
-        return f"{cls.BASE_URL}/healthz"
+    def make_request(cls):
+        import random
 
-    @classmethod
-    def make_request(cls, prompt):
+        prompt = random.choice(cls.PROMPTS)
         headers = {"Content-Type": "text/plain"}
         url = f"{cls.BASE_URL}/query"  # A10G x4
         return url, headers, prompt
