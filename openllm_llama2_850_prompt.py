@@ -109,7 +109,9 @@ Set the temperature to 72 degrees [/INST]
 """
 
 
+import asyncio
 from openllm_llama2_20_prompt import UserDef as BaseUserDef
+from common import get_prompt_set, start_benchmark_session
 
 
 class UserDef(BaseUserDef):
@@ -119,7 +121,7 @@ class UserDef(BaseUserDef):
         import json
         import random
 
-        prompt = PREFIX + random.choice(cls.PROMPTS)
+        prompt = PREFIX + random.choice(get_prompt_set(15, 25))
 
         headers = {"accept": "application/json", "Content-Type": "application/json"}
         config = (
@@ -133,7 +135,4 @@ class UserDef(BaseUserDef):
 
 
 if __name__ == "__main__":
-    import asyncio
-    from common import start_benchmark_session
-
     asyncio.run(start_benchmark_session(UserDef))

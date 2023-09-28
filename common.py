@@ -7,6 +7,7 @@ import time
 import collections
 import contextlib
 import math
+import functools
 
 
 class MetricsCollector:
@@ -275,3 +276,38 @@ async def start_benchmark_session(user_def):
 
     await user_spawner.cancel_all_users()
     return 0
+
+
+@functools.lru_cache(maxsize=1)
+def get_tokenizer():
+    from transformers import LlamaTokenizer
+
+    tokenizer = LlamaTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf")
+
+    def _tokenizer(text):
+        return tokenizer(text)["input_ids"][1:]
+
+    return _tokenizer
+
+
+@functools.lru_cache(maxsize=8)
+def get_prompt_set(min_input_length=0, max_input_length=500):
+    """
+    return a list of prompts with length between min_input_length and max_input_length
+    """
+    import json
+    import requests
+
+    raw_dataset = requests.get(
+        "https://huggingface.co/datasets/databricks/databricks-dolly-15k/resolve/main/databricks-dolly-15k.jsonl"
+    )
+    dataset = [json.loads(line) for line in raw_dataset.iter_lines()]
+    tokenizer = get_tokenizer()
+    for d in dataset:
+        d["input_tokens"] = len(tokenizer(d["instruction"])["input_ids"])
+        d["output_tokens"] = len(tokenizer(d["response"])["input_ids"])
+    return [
+        d["instruction"]
+        for d in dataset
+        if min_input_length <= d["input_tokens"] <= max_input_length
+    ]
