@@ -1,17 +1,12 @@
 from common import start_benchmark_session, get_tokenizer, get_prompt_set
 import asyncio
 
-import importlib.metadata
-from packaging.version import Version
-
-NEW_STREAM_API = Version(importlib.metadata.version("openllm")) >= Version("0.3.14")
-
 class UserDef:
     # BASE_URL = "http://llama27bchat-org-ss-org-1--aws-us-east-1.mt2.bentoml.ai"
     # BASE_URL= "http://llama2-7b-org-ss-org-1--aws-us-east-1.mt2.bentoml.ai"
-    BASE_URL = "http://llama2-13b-org-ss-org-1--aws-us-east-1.mt2.bentoml.ai"
+    # BASE_URL = "http://llama2-13b-org-ss-org-1--aws-us-east-1.mt2.bentoml.ai"
     # BASE_URL = "http://184.105.5.107:3000"
-    # BASE_URL = "http://184.105.217.197:3000"  # Aaron's machine
+    BASE_URL = "http://184.105.217.197:3000"  # Aaron's machine
 
     @classmethod
     def ping_url(cls):
@@ -34,7 +29,7 @@ class UserDef:
             .model_construct_env(max_new_tokens=20, top_p=0.21)
             .model_dump()
         )
-        data = {"prompt": prompt, "llm_config": config, "adapter_name": None} if not NEW_STREAM_API else {"prompt": prompt, "llm_config": config, "adapter_name": None, 'return_type': 'text'}
+        data = {"prompt": prompt, "llm_config": config, "adapter_name": None}
         url = f"{cls.BASE_URL}/v1/generate_stream"
         return url, headers, json.dumps(data)
 
