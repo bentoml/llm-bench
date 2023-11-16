@@ -81,7 +81,7 @@ class MetricsCollector:
                 'total_requests': self.total_requests,
                 'active_requests': self.on_going_requests,
                 'cpu_utilization': psutil.cpu_percent(),
-                'gpu_utilization': GPUtil.getGPUs()[0].load * 100 if GPUtil.getGPUs() else 0,  # Assumes one GPU
+                'gpu_utilization': GPUtil.getGPUs()[0].load * 100 if GPUtil.getGPUs() else 0,  # Assumes one GPU,
                 'gpu_memory_usage': gpu_memory_usage,
             }
             
@@ -90,8 +90,9 @@ class MetricsCollector:
                 for i in range(now - time_window, now)
                 for j in self.response_head_latency_bucket[i]
             ]
+
             current_metrics['response_head_latency'] = np.mean(head_latency_bucket) if head_latency_bucket else 0
-            
+                
             latency_bucket = [
                 j
                 for i in range(now - time_window, now)
@@ -99,7 +100,7 @@ class MetricsCollector:
             ]
             
             current_metrics['response_latency'] = np.mean(latency_bucket) if latency_bucket else 0
-                
+
             current_metrics['response_tokens_per_second'] = sum(self.response_word_bucket[i] for i in range(now - time_window, now)) / time_window
 
             # Record metrics
@@ -119,7 +120,7 @@ class MetricsCollector:
                 print(f"Response Latency: {np.mean(latency_bucket)}")
 
                 # Output to CSV
-                csv_file = f'benchmark-openllm-user={self.on_going_users}_time={session_time}.csv'
+                csv_file = f'benchmark-tgi-user={self.on_going_users}_time={session_time}.csv'
                 with open(csv_file, 'w', newline='') as file:
                     writer = csv.DictWriter(file, fieldnames=metrics[0].keys())
                     writer.writeheader()
@@ -137,54 +138,55 @@ class MetricsCollector:
         response_latency = [m['response_latency'] for m in metrics if 'response_latency' in m]
         response_tokens_per_second = [m['response_tokens_per_second'] for m in metrics]
         gpu_utilization = [m['gpu_utilization'] for m in metrics]
-        gpu_memory_usage = [m['gpu_memory_usage'] for m in metrics]
         cpu_utilization = [m['cpu_utilization'] for m in metrics]
+        gpu_memory_usage = [m['gpu_memory_usage'] for m in metrics]
 
         # Create a 3x2 grid of subplots
         fig, axs = plt.subplots(3, 3, figsize=(15, 10))
-        fig.suptitle('OpenLLM Benchmarking with Llama2-7b')
+        fig.suptitle('TGI Benchmarking with Llama2-7b')
 
         # Plot each metric in its subplot
         axs[0, 0].plot(times, total_requests, label='Total Requests')
         axs[0, 0].set_title('Total Requests')
-        axs[0, 0].set_xlabel('Time (s)')
+        axs[0, 0].set_xlabel('Time Elapsed (s)')
         axs[0, 0].set_ylabel('Total Requests')
 
         axs[0, 1].plot(times, requests_per_second, label='Requests/s')
         axs[0, 1].set_title('Requests per Second')
-        axs[0, 1].set_xlabel('Time (s)')
+        axs[0, 1].set_xlabel('Time Elapsed (s)')
         axs[0, 1].set_ylabel('Requests/s')
 
         axs[0, 2].plot(times, response_latency, label='Response Latency')
         axs[0, 2].set_title('Response Latency')
-        axs[0, 2].set_xlabel('Time (s)')
+        axs[0, 2].set_xlabel('Time Elapsed (s)')
         axs[0, 2].set_ylabel('Latency')
 
         axs[1, 0].plot(times, response_tokens_per_second, label='Response Tokens/s')
         axs[1, 0].set_title('Response Tokens per Second')
-        axs[1, 0].set_xlabel('Time (s)')
+        axs[1, 0].set_xlabel('Time Elapsed (s)')
         axs[1, 0].set_ylabel('Tokens/s')
 
         axs[1, 1].plot(times, gpu_utilization, label='GPU Utilization')
         axs[1, 1].set_title('GPU Utilization')
-        axs[1, 1].set_xlabel('Time (s)')
+        axs[1, 1].set_xlabel('Time Elapsed (s)')
         axs[1, 1].set_ylabel('Utilization (%)')
 
         axs[1, 2].plot(times, cpu_utilization, label='CPU Utilization')
         axs[1, 2].set_title('CPU Utilization')
-        axs[1, 2].set_xlabel('Time (s)')
+        axs[1, 2].set_xlabel('Time Elapsed (s)')
         axs[1, 2].set_ylabel('Utilization (%)')
-        
+
         axs[2, 0].plot(times, cpu_utilization, label='GPU Memory Usage')
         axs[2, 0].set_title('GPU Memory Usage')
         axs[2, 0].set_xlabel('Time (s)')
         axs[2, 0].set_ylabel('Memory Usage (%)')
-
+        
         # Adjust layout
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-        plt.savefig('benchmark-metrics-openllm-user={on_going_users}_time={session_time}.png')
+        plt.savefig('benchmark-metrics-tgi-user={on_going_users}_time={session_time}.png')
         plt.show()
-        
+
+
 def linear_regression(x, y):
     x = tuple((i, 1) for i in x)
     y = tuple(i for i in y)
@@ -242,12 +244,13 @@ class UserSpawner:
                                 try:
                                     if response.status != 200:
                                         continue
-                                    async for data in response.content.iter_chunked(128000):
+                                    async for data, end_of_http_chunk in response.content.iter_chunks():
                                         result = self.user_def.parse_response(data)
-                                        if not result: break
                                         self.data_collector.collect_response_chunk(
                                             result
                                         )
+                                        if not end_of_http_chunk:
+                                            break
                                 except Exception as e:
                                     self.data_collector.collect_response_status(str(e))
                                     raise e
