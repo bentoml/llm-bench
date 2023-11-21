@@ -7,7 +7,7 @@ class UserDef:
     # BASE_URL= "http://llama2-7b-org-ss-org-1--aws-us-east-1.mt2.bentoml.ai"
     # BASE_URL = "http://llama2-13b-org-ss-org-1--aws-us-east-1.mt2.bentoml.ai"
     # BASE_URL = "http://184.105.5.107:3000"
-    BASE_URL = "http://184.105.6.4:8080"
+    BASE_URL = "http://74.82.31.91:8080"
 
     @classmethod
     def ping_url(cls):
@@ -21,12 +21,12 @@ class UserDef:
         import json
         import random
 
-        prompt = random.choice(get_prompt_set(80, 120))
+        prompt = random.choice(get_prompt_set(15, 25))
 
         headers = {"accept": "application/json", "Content-Type": "application/json"}
         data = {
             "inputs": prompt, 
-            "parameters": {"max_new_tokens": 100, "top_p":0.21}
+            "parameters": {"max_new_tokens": 20, "top_p":0.21}
         }
         url = f"{cls.BASE_URL}/generate_stream"
         return url, headers, json.dumps(data)
@@ -38,10 +38,7 @@ class UserDef:
         """
         response = chunk.decode("utf-8").strip()[5:]
         data = json.loads(response)
-        try:
-            return [data['token']['id']]
-        except:
-            return []
+        return [data['token']['id']]
 
     @staticmethod
     async def rest():

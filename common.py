@@ -13,7 +13,7 @@ import os
 import matplotlib.pyplot as plt
 import psutil  # For CPU utilization
 import GPUtil  # For GPU utilization
-import nvidia_smi
+import nvidia_smi # pip install nvidia-ml-py3
 
 class MetricsCollector:
     def __init__(self, user_def, ping_latency=0.0):
@@ -119,7 +119,7 @@ class MetricsCollector:
                 print(f"Response Latency: {np.mean(latency_bucket)}")
 
                 # Output to CSV
-                csv_file = f'benchmark-openllm-user={self.on_going_users}_time={session_time}.csv'
+                csv_file = f'data/benchmark-openllm-user={self.on_going_users}_time={session_time}_utc={math.floor(time.time())}.csv'
                 with open(csv_file, 'w', newline='') as file:
                     writer = csv.DictWriter(file, fieldnames=metrics[0].keys())
                     writer.writeheader()
@@ -127,9 +127,9 @@ class MetricsCollector:
                         writer.writerow(data)
 
                 # Plotting
-                self.plot_metrics(metrics)
+                self.plot_metrics(metrics, session_time)
     
-    def plot_metrics(self, metrics):
+    def plot_metrics(self, metrics, session_time):
         # Prepare the data for plotting
         times = [m['time_elapsed'] for m in metrics]
         total_requests = [m['total_requests'] for m in metrics]
@@ -137,52 +137,47 @@ class MetricsCollector:
         response_latency = [m['response_latency'] for m in metrics if 'response_latency' in m]
         response_tokens_per_second = [m['response_tokens_per_second'] for m in metrics]
         gpu_utilization = [m['gpu_utilization'] for m in metrics]
-        gpu_memory_usage = [m['gpu_memory_usage'] for m in metrics]
         cpu_utilization = [m['cpu_utilization'] for m in metrics]
+        gpu_memory_usage = [m['gpu_memory_usage'] for m in metrics]
 
         # Create a 3x2 grid of subplots
-        fig, axs = plt.subplots(3, 3, figsize=(15, 10))
+        fig, axs = plt.subplots(2, 3, figsize=(15, 10))
         fig.suptitle('OpenLLM Benchmarking with Llama2-7b')
 
         # Plot each metric in its subplot
-        axs[0, 0].plot(times, total_requests, label='Total Requests')
-        axs[0, 0].set_title('Total Requests')
-        axs[0, 0].set_xlabel('Time (s)')
-        axs[0, 0].set_ylabel('Total Requests')
+        axs[0, 0].plot(times, requests_per_second, label='Requests/s')
+        axs[0, 0].set_title('Requests per Second')
+        axs[0, 0].set_xlabel('Time Elapsed (s)')
+        axs[0, 0].set_ylabel('Requests/s')
 
-        axs[0, 1].plot(times, requests_per_second, label='Requests/s')
-        axs[0, 1].set_title('Requests per Second')
-        axs[0, 1].set_xlabel('Time (s)')
-        axs[0, 1].set_ylabel('Requests/s')
+        axs[0, 1].plot(times, response_latency, label='Response Latency')
+        axs[0, 1].set_title('Response Latency')
+        axs[0, 1].set_xlabel('Time Elapsed (s)')
+        axs[0, 1].set_ylabel('Latency')
 
-        axs[0, 2].plot(times, response_latency, label='Response Latency')
-        axs[0, 2].set_title('Response Latency')
-        axs[0, 2].set_xlabel('Time (s)')
-        axs[0, 2].set_ylabel('Latency')
+        axs[0, 2].plot(times, response_tokens_per_second, label='Response Tokens/s')
+        axs[0, 2].set_title('Response Tokens per Second')
+        axs[0, 2].set_xlabel('Time Elapsed (s)')
+        axs[0, 2].set_ylabel('Tokens/s')
 
-        axs[1, 0].plot(times, response_tokens_per_second, label='Response Tokens/s')
-        axs[1, 0].set_title('Response Tokens per Second')
-        axs[1, 0].set_xlabel('Time (s)')
-        axs[1, 0].set_ylabel('Tokens/s')
+        axs[1, 0].plot(times, gpu_utilization, label='GPU Utilization')
+        axs[1, 0].set_title('GPU Utilization')
+        axs[1, 0].set_xlabel('Time Elapsed (s)')
+        axs[1, 0].set_ylabel('Utilization (%)')
 
-        axs[1, 1].plot(times, gpu_utilization, label='GPU Utilization')
-        axs[1, 1].set_title('GPU Utilization')
-        axs[1, 1].set_xlabel('Time (s)')
+        axs[1, 1].plot(times, cpu_utilization, label='CPU Utilization')
+        axs[1, 1].set_title('CPU Utilization')
+        axs[1, 1].set_xlabel('Time Elapsed (s)')
         axs[1, 1].set_ylabel('Utilization (%)')
 
-        axs[1, 2].plot(times, cpu_utilization, label='CPU Utilization')
-        axs[1, 2].set_title('CPU Utilization')
-        axs[1, 2].set_xlabel('Time (s)')
+        axs[1, 2].plot(times, gpu_memory_usage, label='GPU Memory Usage')
+        axs[1, 2].set_title('GPU Memory Usage')
+        axs[1, 2].set_xlabel('Time Elapsed (s)')
         axs[1, 2].set_ylabel('Utilization (%)')
         
-        axs[2, 0].plot(times, cpu_utilization, label='GPU Memory Usage')
-        axs[2, 0].set_title('GPU Memory Usage')
-        axs[2, 0].set_xlabel('Time (s)')
-        axs[2, 0].set_ylabel('Memory Usage (%)')
-
         # Adjust layout
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-        plt.savefig('benchmark-metrics-openllm-user={on_going_users}_time={session_time}.png')
+        plt.savefig(f'graph/benchmark-metrics-openllm-user={self.on_going_users}_time={session_time}_utc={math.floor(time.time())}.png')
         plt.show()
         
 def linear_regression(x, y):

@@ -7,7 +7,7 @@ class UserDef:
     # BASE_URL= "http://llama2-7b-org-ss-org-1--aws-us-east-1.mt2.bentoml.ai"
     # BASE_URL = "http://llama2-13b-org-ss-org-1--aws-us-east-1.mt2.bentoml.ai"
     # BASE_URL = "http://184.105.5.107:3000"
-    BASE_URL = "http://184.105.6.4:3000"
+    BASE_URL = "http://184.105.6.166:3000"
 
     @classmethod
     def ping_url(cls):
@@ -22,12 +22,12 @@ class UserDef:
         import json
         import random
 
-        prompt = random.choice(get_prompt_set(80, 120))
+        prompt = random.choice(get_prompt_set(15, 25))
 
         headers = {"accept": "application/json", "Content-Type": "application/json"}
         config = (
             openllm.AutoConfig.for_model("llama")
-            .model_construct_env(max_new_tokens=100, top_p=0.21)
+            .model_construct_env(max_new_tokens=20, top_p=0.21)
             .model_dump()
         )
         data = {"prompt": prompt, "llm_config": config, "adapter_name": None}
