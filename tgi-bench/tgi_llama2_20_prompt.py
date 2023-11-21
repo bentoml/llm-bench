@@ -7,7 +7,8 @@ class UserDef:
     # BASE_URL= "http://llama2-7b-org-ss-org-1--aws-us-east-1.mt2.bentoml.ai"
     # BASE_URL = "http://llama2-13b-org-ss-org-1--aws-us-east-1.mt2.bentoml.ai"
     # BASE_URL = "http://184.105.5.107:3000"
-    BASE_URL = "http://74.82.31.91:8080"
+    # BASE_URL = "http://184.105.217.197:3000"  # Aaron's machine
+    BASE_URL = "http://172.83.15.18:8080"
 
     @classmethod
     def ping_url(cls):

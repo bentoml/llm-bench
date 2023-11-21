@@ -120,7 +120,7 @@ class MetricsCollector:
                 print(f"Response Latency: {np.mean(latency_bucket)}")
 
                 # Output to CSV
-                csv_file = f'benchmark-tgi-user={self.on_going_users}_time={session_time}.csv'
+                csv_file = f'data/benchmark-tgi-user={self.on_going_users}_time={session_time}.csv'
                 with open(csv_file, 'w', newline='') as file:
                     writer = csv.DictWriter(file, fieldnames=metrics[0].keys())
                     writer.writeheader()
@@ -178,7 +178,7 @@ class MetricsCollector:
         
         # Adjust layout
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-        plt.savefig(f'benchmark-metrics-tgi-user={self.on_going_users}_time={session_time}_{math.floor(time.time())}.png')
+        plt.savefig(f'graph/benchmark-metrics-tgi-user={self.on_going_users}_time={session_time}_{math.floor(time.time())}.png')
         plt.show()
 
 
