@@ -16,7 +16,7 @@ import GPUtil  # For GPU utilization
 import nvidia_smi # pip install nvidia-ml-py3
 
 class MetricsCollector:
-    def __init__(self, user_def, ping_latency=0.0):
+    def __init__(self, user_def, model_name, ping_latency=0.0):
         self.start_time = math.floor(time.time())
         self.response_word_bucket = collections.defaultdict(int)
         self.response_head_latency_bucket = collections.defaultdict(list)
@@ -28,6 +28,7 @@ class MetricsCollector:
         self.status_bucket = collections.defaultdict(int)
         self.user_def = user_def
         self.ping_latency = ping_latency
+        self.model_name = model_name
 
     def collect_response_chunk(self, chunk: list):
         self.response_word_bucket[math.floor(time.time())] += len(chunk)
@@ -119,7 +120,7 @@ class MetricsCollector:
                 print(f"Response Latency: {np.mean(latency_bucket)}")
 
                 # Output to CSV
-                csv_file = f'data/benchmark-openllm-user={self.on_going_users}_time={session_time}_utc={math.floor(time.time())}.csv'
+                csv_file = f'data/{self.model_name}-benchmark-openllm-user={self.on_going_users}_time={session_time}_utc={math.floor(time.time())}.csv'
                 with open(csv_file, 'w', newline='') as file:
                     writer = csv.DictWriter(file, fieldnames=metrics[0].keys())
                     writer.writeheader()
@@ -127,9 +128,9 @@ class MetricsCollector:
                         writer.writerow(data)
 
                 # Plotting
-                self.plot_metrics(metrics, session_time)
+                self.plot_metrics(metrics, session_time, self.model_name)
     
-    def plot_metrics(self, metrics, session_time):
+    def plot_metrics(self, metrics, session_time, model_name):
         # Prepare the data for plotting
         times = [m['time_elapsed'] for m in metrics]
         total_requests = [m['total_requests'] for m in metrics]
@@ -142,7 +143,7 @@ class MetricsCollector:
 
         # Create a 3x2 grid of subplots
         fig, axs = plt.subplots(2, 3, figsize=(15, 10))
-        fig.suptitle('OpenLLM Benchmarking with Llama2-7b')
+        fig.suptitle(f'OpenLLM Benchmarking with {model_name}')
 
         # Plot each metric in its subplot
         axs[0, 0].plot(times, requests_per_second, label='Requests/s')
@@ -177,7 +178,7 @@ class MetricsCollector:
         
         # Adjust layout
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-        plt.savefig(f'graph/benchmark-metrics-openllm-user={self.on_going_users}_time={session_time}_utc={math.floor(time.time())}.png')
+        plt.savefig(f'graph/{model_name}-benchmark-metrics-openllm-user={self.on_going_users}_time={session_time}_utc={math.floor(time.time())}.png')
         plt.show()
         
 def linear_regression(x, y):
@@ -330,6 +331,7 @@ async def start_benchmark_session(user_def):
     parser = argparse.ArgumentParser(description="Benchmark")
     parser.add_argument("--max_users", type=int, default=None)
     parser.add_argument("--session_time", type=float, default=None)
+    parser.add_argument("--name", type=str, default=None)
     parser.add_argument("--ping_correction", action="store_true")
     args = parser.parse_args()
 
@@ -351,7 +353,7 @@ async def start_benchmark_session(user_def):
 
     # init
     collector = MetricsCollector(
-        user_def, ping_latency - 0.005 if args.ping_correction else 0
+        user_def, args.name, ping_latency - 0.005 if args.ping_correction else 0
     )
     user_spawner = UserSpawner(
         user_def, collector, args.max_users, target_time=time.time() + 20

@@ -1,6 +1,6 @@
 import asyncio
 from tgi_llama2_20_prompt import UserDef as BaseUserDef
-from common import get_prompt_set, start_benchmark_session
+from common_tgi import get_prompt_set, start_benchmark_session
 
 
 class UserDef(BaseUserDef):

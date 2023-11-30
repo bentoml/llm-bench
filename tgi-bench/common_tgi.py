@@ -14,49 +14,13 @@ import matplotlib.pyplot as plt
 import psutil  # For CPU utilization
 import GPUtil  # For GPU utilization
 import nvidia_smi
+import sys
+sys.path.append('../')
+from common import MetricsCollector as BaseMetricsCollector
+from common import UserSpawner as BaseUserSpawner
+from common import get_prompt_set
 
-class MetricsCollector:
-    def __init__(self, user_def, ping_latency=0.0):
-        self.start_time = math.floor(time.time())
-        self.response_word_bucket = collections.defaultdict(int)
-        self.response_head_latency_bucket = collections.defaultdict(list)
-        self.response_latency_bucket = collections.defaultdict(list)
-        self.on_going_requests = 0
-        self.response_bucket = collections.defaultdict(int)
-        self.total_requests = 0
-        self.on_going_users = 0
-        self.status_bucket = collections.defaultdict(int)
-        self.user_def = user_def
-        self.ping_latency = ping_latency
-
-    def collect_response_chunk(self, chunk: list):
-        self.response_word_bucket[math.floor(time.time())] += len(chunk)
-
-    def collect_response_status(self, status):
-        self.status_bucket[status] += 1
-
-    def collect_response_head_latency(self, latency):
-        self.response_head_latency_bucket[math.floor(time.time())] += [
-            latency - self.ping_latency
-        ]
-
-    @contextlib.contextmanager
-    def collect_http_request(self):
-        start_time = time.time()
-        self.on_going_requests += 1
-        yield
-        self.on_going_requests -= 1
-        self.response_bucket[math.floor(time.time())] += 1
-        self.response_latency_bucket[math.floor(time.time())] += [
-            time.time() - start_time - self.ping_latency
-        ]
-
-    @contextlib.contextmanager
-    def collect_user(self):
-        self.on_going_users += 1
-        yield
-        self.on_going_users -= 1
-
+class MetricsCollector(BaseMetricsCollector):
     async def report_loop(self, session_time, time_window=5):
         """
         Each bucket is in 1s. This function will report the avg metrics in the past time_window seconds.
@@ -128,9 +92,9 @@ class MetricsCollector:
                         writer.writerow(data)
 
                 # Plotting
-                self.plot_metrics(metrics, session_time)
+                self.plot_metrics(metrics, session_time, self.model_name)
     
-    def plot_metrics(self, metrics, session_time):
+    def plot_metrics(self, metrics, session_time, model_name):
         # Prepare the data for plotting
         times = [m['time_elapsed'] for m in metrics]
         total_requests = [m['total_requests'] for m in metrics]
@@ -143,7 +107,7 @@ class MetricsCollector:
 
         # Create a 3x2 grid of subplots
         fig, axs = plt.subplots(2, 3, figsize=(15, 10))
-        fig.suptitle('TGI Benchmarking with Llama2-7b')
+        fig.suptitle(f'TGI Benchmarking with {model_name}')
 
         # Plot each metric in its subplot
         axs[0, 0].plot(times, requests_per_second, label='Requests/s')
@@ -178,9 +142,8 @@ class MetricsCollector:
         
         # Adjust layout
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-        plt.savefig(f'graph/benchmark-metrics-tgi-user={self.on_going_users}_time={session_time}_{math.floor(time.time())}.png')
+        plt.savefig(f'graph/{model_name}-benchmark-metrics-tgi-user={self.on_going_users}_time={session_time}_{math.floor(time.time())}.png')
         plt.show()
-
 
 def linear_regression(x, y):
     x = tuple((i, 1) for i in x)
@@ -189,32 +152,7 @@ def linear_regression(x, y):
     return a, b
 
 
-class UserSpawner:
-    def __init__(
-        self,
-        user_def,
-        collector: MetricsCollector,
-        target_user_count=None,
-        target_time=None,
-    ):
-        self.target_user_count = 1 if target_user_count is None else target_user_count
-        self.target_time = time.time() + 10 if target_time is None else target_time
-
-        self.data_collector = collector
-        self.user_def = user_def
-
-        self.user_list: list[Task] = []
-
-    async def sync(self):
-        while True:
-            if self.current_user_count == self.target_user_count:
-                return
-            await asyncio.sleep(0.1)
-
-    @property
-    def current_user_count(self):
-        return len(self.user_list)
-
+class UserSpawner(BaseUserSpawner):
     async def user_loop(self):
         with self.data_collector.collect_user():
             cookie_jar = aiohttp.DummyCookieJar()
@@ -252,80 +190,6 @@ class UserSpawner:
                         await self.user_def.rest()
             except asyncio.CancelledError:
                 pass
-
-    def spawn_user(self):
-        self.user_list.append(asyncio.create_task(self.user_loop()))
-
-    async def cancel_all_users(self):
-        try:
-            user = self.user_list.pop()
-            user.cancel()
-        except IndexError:
-            pass
-        await asyncio.sleep(0)
-
-    async def spawner_loop(self):
-        while True:
-            current_users = len(self.user_list)
-            if current_users == self.target_user_count:
-                await asyncio.sleep(0.1)
-            elif current_users < self.target_user_count:
-                self.spawn_user()
-                sleep_time = max(
-                    (self.target_time - time.time())
-                    / (self.target_user_count - current_users),
-                    0,
-                )
-                await asyncio.sleep(sleep_time)
-            elif current_users > self.target_user_count:
-                self.user_list.pop().cancel()
-                sleep_time = max(
-                    (time.time() - self.target_time)
-                    / (current_users - self.target_user_count),
-                    0,
-                )
-                await asyncio.sleep(sleep_time)
-
-    async def aimd_loop(
-        self,
-        adjust_interval=5,
-        sampling_interval=5,
-        ss_delta=1,
-    ):
-        """
-        Detect a suitable number of users to maximize the words/s.
-        """
-        while True:
-            while True:
-                # slow start
-                now = math.floor(time.time())
-                words_per_seconds = [
-                    self.data_collector.response_word_bucket[i]
-                    for i in range(now - sampling_interval, now)
-                ]
-                slope = linear_regression(
-                    range(len(words_per_seconds)), words_per_seconds
-                )[0]
-                if slope >= -0.01:
-                    # throughput is increasing
-                    cwnd = self.current_user_count
-                    target_cwnd = max(int(cwnd * (1 + ss_delta)), cwnd + 1)
-                    self.target_user_count = target_cwnd
-                    self.target_time = time.time() + adjust_interval
-                    print(f"SS: {cwnd} -> {target_cwnd}")
-                    await asyncio.sleep(adjust_interval)
-                else:
-                    # throughput is decreasing, stop slow start
-                    cwnd = self.current_user_count
-                    target_cwnd = math.ceil(cwnd * 0.5)
-                    self.target_user_count = target_cwnd
-                    self.target_time = time.time() + adjust_interval
-                    print(f"SS Ended: {target_cwnd}")
-                    break
-
-            await self.sync()
-            await asyncio.sleep(min(adjust_interval, sampling_interval, 10))
-            return 0
 
 
 async def start_benchmark_session(user_def):
@@ -373,48 +237,3 @@ async def start_benchmark_session(user_def):
     return 0
 
 
-@functools.lru_cache(maxsize=1)
-def get_tokenizer():
-    from transformers import LlamaTokenizer
-
-    tokenizer = LlamaTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf")
-
-    def _tokenizer(text):
-        return tokenizer(text)["input_ids"][1:]
-
-    return _tokenizer
-
-
-@functools.lru_cache(maxsize=8)
-def get_prompt_set(min_input_length=0, max_input_length=500):
-    """
-    return a list of prompts with length between min_input_length and max_input_length
-    """
-    import json
-    import requests
-    import os
-
-    # check if the dataset is cached
-    if os.path.exists("databricks-dolly-15k.jsonl"):
-        print("Loading cached dataset")
-        with open("databricks-dolly-15k.jsonl", "r") as f:
-            dataset = [json.loads(line) for line in f.readlines()]
-    else:
-        print("Downloading dataset")
-        raw_dataset = requests.get(
-            "https://huggingface.co/datasets/databricks/databricks-dolly-15k/resolve/main/databricks-dolly-15k.jsonl"
-        )
-        content = raw_dataset.content
-        open("databricks-dolly-15k.jsonl", "wb").write(content)
-        dataset = [json.loads(line) for line in content.decode().split("\n")]
-        print("Dataset downloaded")
-
-    tokenizer = get_tokenizer()
-    for d in dataset:
-        d["input_tokens"] = len(tokenizer(d["instruction"]))
-        d["output_tokens"] = len(tokenizer(d["response"]))
-    return [
-        d["instruction"]
-        for d in dataset
-        if min_input_length <= d["input_tokens"] <= max_input_length
-    ]

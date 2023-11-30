@@ -1,6 +1,6 @@
-from common import start_benchmark_session, get_tokenizer, get_prompt_set
+from common_tgi import start_benchmark_session, get_prompt_set
 import asyncio
-import json
+import orjson
 
 class UserDef:
     # BASE_URL = "http://llama27bchat-org-ss-org-1--aws-us-east-1.mt2.bentoml.ai"
@@ -8,7 +8,7 @@ class UserDef:
     # BASE_URL = "http://llama2-13b-org-ss-org-1--aws-us-east-1.mt2.bentoml.ai"
     # BASE_URL = "http://184.105.5.107:3000"
     # BASE_URL = "http://184.105.217.197:3000"  # Aaron's machine
-    BASE_URL = "http://172.83.15.18:8080"
+    BASE_URL = "http://209.51.170.210:8080"
 
     @classmethod
     def ping_url(cls):
@@ -38,8 +38,13 @@ class UserDef:
         take chunk and return list of tokens, used for token counting
         """
         response = chunk.decode("utf-8").strip()[5:]
-        data = json.loads(response)
-        return [data['token']['id']]
+        try:
+            return [orjson.loads(response)['token']['id']]
+        except orjson.JSONDecodeError as err:
+            print(err)
+            print(type(response))
+            print(response)
+            return []
 
     @staticmethod
     async def rest():
