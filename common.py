@@ -114,7 +114,7 @@ class MetricsCollector:
             if (session_time - time_elapsed) <= time_window:
                 print("---------- Final Result ----------")
                 
-                average_period = time_elapsed - 4 * time_window
+                average_period = time_elapsed - 60 # Ignore the first 60 seconds
                 print(f"Request/s: {sum(self.response_bucket[i] for i in range(now - average_period, now)) / average_period}")
                 print(f"Response Tokens/s: {sum(self.response_word_bucket[i] for i in range(now - average_period, now)) / average_period}")
                 print(f"Response Latency: {np.mean(latency_bucket)}")

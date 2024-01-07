@@ -10,7 +10,7 @@ class UserDef(BaseUserDef):
         import json
         import random
 
-        prompt = random.choice(get_prompt_set(300, 500))
+        prompt = random.choice(get_prompt_set(150, 250))
 
         headers = {"accept": "application/json", "Content-Type": "application/json"}
         config = (
