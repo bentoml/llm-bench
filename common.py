@@ -124,8 +124,8 @@ class UserSpawner:
         with self.data_collector.collect_user():
             cookie_jar = aiohttp.DummyCookieJar()
             try:
-                async with aiohttp.ClientSession(cookie_jar=cookie_jar) as session:
-                    while True:
+                while True:
+                    async with aiohttp.ClientSession(cookie_jar=cookie_jar) as session:
                         url, headers, data = self.user_def.make_request()
                         self.data_collector.total_requests += 1
                         with self.data_collector.collect_http_request():
