@@ -130,18 +130,19 @@ class UserSpawner:
                         self.data_collector.total_requests += 1
                         with self.data_collector.collect_http_request():
                             req_start = time.time()
-                            async with session.post(
-                                url,
-                                headers=headers,
-                                data=data,
-                            ) as response:
-                                self.data_collector.collect_response_status(
-                                    response.status
-                                )
-                                self.data_collector.collect_response_head_latency(
-                                    time.time() - req_start
-                                )
-                                try:
+                            try:
+                                async with session.post(
+                                    url,
+                                    headers=headers,
+                                    data=data,
+                                    timeout=60,
+                                ) as response:
+                                    self.data_collector.collect_response_status(
+                                        response.status
+                                    )
+                                    self.data_collector.collect_response_head_latency(
+                                        time.time() - req_start
+                                    )
                                     if response.status != 200:
                                         continue
                                     async for data, end_of_http_chunk in response.content.iter_chunks():
@@ -151,12 +152,18 @@ class UserSpawner:
                                         )
                                         if not end_of_http_chunk:
                                             break
-                                except Exception as e:
-                                    self.data_collector.collect_response_status(str(e))
-                                    raise e
+                            except asyncio.TimeoutError:
+                                self.data_collector.collect_response_status(
+                                    "Timeout"
+                                )
+                                continue
+                            except Exception as e:
+                                self.data_collector.collect_response_status(str(e))
+                                print(e)
+                                raise e
                         await self.user_def.rest()
             except asyncio.CancelledError:
-                pass
+                raise
 
     def spawn_user(self):
         self.user_list.append(asyncio.create_task(self.user_loop()))
