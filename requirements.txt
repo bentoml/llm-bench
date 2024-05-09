@@ -1,0 +1,4 @@
+aiohttp
+numpy
+transformers
+sentencepiece
