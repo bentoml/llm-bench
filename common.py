@@ -11,7 +11,7 @@ import functools
 
 
 class MetricsCollector:
-    def __init__(self, user_def, ping_latency=0.0):
+    def __init__(self, user_def, session_time=None, ping_latency=0.0):
         self.start_time = math.floor(time.time())
         self.response_word_bucket = collections.defaultdict(int)
         self.response_head_latency_bucket = collections.defaultdict(list)
@@ -22,6 +22,7 @@ class MetricsCollector:
         self.on_going_users = 0
         self.status_bucket = collections.defaultdict(int)
         self.user_def = user_def
+        self.session_time = session_time
         self.ping_latency = ping_latency
 
     def collect_response_chunk(self, chunk: list):
@@ -85,6 +86,30 @@ class MetricsCollector:
             )
             print(f"Status: {self.status_bucket}")
             print()
+
+            if self.session_time and now - self.start_time >= self.session_time:
+                self.report_final()
+                break
+
+    def report_final(self):
+        print("=================== Final Report ====================")
+        print(f"Total Requests: {self.total_requests}")
+        print(
+            f"Average Request/s: {self.total_requests / (time.time() - self.start_time)}"
+        )
+        head_latency_size = sum(len(i) for i in self.response_head_latency_bucket.values())
+        if head_latency_size:
+            print(
+                f"Average Response Head Latency: {sum(j for i in self.response_head_latency_bucket.values() for j in i) / head_latency_size}"
+            )
+        latency_size = sum(len(i) for i in self.response_latency_bucket.values())
+        if latency_size:
+            print(
+                f"Average Response Latency: {sum(j for i in self.response_latency_bucket.values() for j in i) / latency_size}"
+            )
+        print(
+            f"Average Response Tokens/s: {sum(self.response_word_bucket.values()) / (time.time() - self.start_time)}"
+        )
 
 
 def linear_regression(x, y):
@@ -259,7 +284,7 @@ async def start_benchmark_session(user_def):
 
     # init
     collector = MetricsCollector(
-        user_def, ping_latency - 0.005 if args.ping_correction else 0
+        user_def, args.session_time, ping_latency - 0.005 if args.ping_correction else 0
     )
     user_spawner = UserSpawner(
         user_def, collector, args.max_users, target_time=time.time() + 20
@@ -270,7 +295,7 @@ async def start_benchmark_session(user_def):
         asyncio.create_task(user_spawner.aimd_loop())
 
     if args.session_time is not None:
-        await asyncio.sleep(args.session_time)
+        await asyncio.sleep(args.session_time + 1)
     else:
         await asyncio.wait(user_spawner.user_list)
 
