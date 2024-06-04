@@ -258,14 +258,7 @@ class UserSpawner:
             return 0
 
 
-async def start_benchmark_session(user_def):
-    # arg parsing
-    parser = argparse.ArgumentParser(description="Benchmark")
-    parser.add_argument("--max_users", type=int, default=None)
-    parser.add_argument("--session_time", type=float, default=None)
-    parser.add_argument("--ping_correction", action="store_true")
-    args = parser.parse_args()
-
+async def start_benchmark_session(args, user_def):
     # ping server
     response_times = []
     async with aiohttp.ClientSession() as session:
