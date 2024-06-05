@@ -97,16 +97,40 @@ class MetricsCollector:
         print(
             f"Average Request/s: {self.total_requests / (time.time() - self.start_time)}"
         )
+
         head_latency_size = sum(len(i) for i in self.response_head_latency_bucket.values())
         if head_latency_size:
+            head_latencies = [j for i in self.response_head_latency_bucket.values() for j in i]
+
             print(
-                f"Average Response Head Latency: {sum(j for i in self.response_head_latency_bucket.values() for j in i) / head_latency_size}"
+                f"Average Response Head Latency: {sum(head_latencies) / head_latency_size}"
             )
+            print(
+                f"Median Response Head Latency: {np.percentile(head_latencies, 50)}"
+            )
+            print(
+                f"95% Response Head Latency: {np.percentile(head_latencies, 95)}"
+            )
+            print(
+                f"99% Response Head Latency: {np.percentile(head_latencies, 99)}"
+            )
+
         latency_size = sum(len(i) for i in self.response_latency_bucket.values())
         if latency_size:
+            latencies = [j for i in self.response_latency_bucket.values() for j in i]
             print(
-                f"Average Response Latency: {sum(j for i in self.response_latency_bucket.values() for j in i) / latency_size}"
+                f"Average Response Latency: {sum(latencies) / latency_size}"
             )
+            print(
+                f"Median Response Latency: {np.percentile(latencies, 50)}"
+            )
+            print(
+                f"95% Response Latency: {np.percentile(latencies, 95)}"
+            )
+            print(
+                f"99% Response Latency: {np.percentile(latencies, 99)}"
+            )
+
         print(
             f"Average Response Tokens/s: {sum(self.response_word_bucket.values()) / (time.time() - self.start_time)}"
         )
