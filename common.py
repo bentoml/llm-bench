@@ -187,14 +187,19 @@ class UserSpawner:
                                 self.data_collector.collect_response_status(
                                     response.status
                                 )
-                                self.data_collector.collect_response_head_latency(
-                                    time.time() - req_start
-                                )
                                 try:
                                     if response.status != 200:
                                         continue
+
+                                    first = True
                                     async for data, end_of_http_chunk in response.content.iter_chunks():
                                         result = self.user_def.parse_response(data)
+                                        if first:
+                                            first = False
+                                            self.data_collector.collect_response_head_latency(
+                                                time.time() - req_start
+                                            )
+
                                         self.data_collector.collect_response_chunk(
                                             result
                                         )
