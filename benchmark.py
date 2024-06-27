@@ -6,7 +6,13 @@ from transformers import AutoTokenizer
 
 from userdef import UserDef as BaseUserDef
 
-max_tokens = 512
+try:
+    max_tokens = int(os.environ.get("MAX_TOKENS"))
+except (TypeError, ValueError):
+    max_tokens = 512
+
+print(f"max_tokens set to {max_tokens}")
+
 tokenizer = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B-Instruct")
 
 default_system_prompt = """You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
