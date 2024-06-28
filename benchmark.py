@@ -19,7 +19,15 @@ default_system_prompt = """You are a helpful, respectful and honest assistant. A
 
 If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information."""
 
-system_prompt = default_system_prompt if os.environ.get("SYSTEM_PROMPT") == "1" else ""
+if os.environ.get("SYSTEM_PROMPT") == "1":
+    system_prompt = default_system_prompt
+    system_prompt_file = os.environ.get("SYSTEM_PROMPT_FILE")
+    if system_prompt_file is not None:
+        with open(system_prompt_file) as f:
+            system_prompt_file = f.read().strip()
+else:
+    system_prompt = ""
+
 base_url = os.environ.get("BASE_URL", "http://localhost:3000")
 
 
