@@ -24,7 +24,7 @@ if os.environ.get("SYSTEM_PROMPT") == "1":
     system_prompt_file = os.environ.get("SYSTEM_PROMPT_FILE")
     if system_prompt_file is not None:
         with open(system_prompt_file) as f:
-            system_prompt_file = f.read().strip()
+            system_prompt = f.read().strip()
 else:
     system_prompt = ""
 
