@@ -198,9 +198,7 @@ class MetricsCollector:
             }, self.logging_function)
             self.logging_function("")
 
-            if self.session_time and now - self.start_time >= self.session_time:
-                self.logging_function(f"Time: {1 + now - self.start_time}")
-                self.report_final()
+            if self.session_time and (now - self.start_time) >= self.session_time:
                 break
 
     def report_final(self):
@@ -418,6 +416,7 @@ async def start_benchmark_session(args, user_def, logger=print):
         await asyncio.sleep(args.session_time + 1)
     else:
         await asyncio.wait(user_spawner.user_list)
-
+    collector.logging_function((f"Time: {1 +  math.floor(time.time()) - collector.start_time}"))
+    collector.report_final()
     await user_spawner.cancel_all_users()
     return 0
