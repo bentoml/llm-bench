@@ -15,7 +15,7 @@ def print_aggregations(d, logger):
     total_time = end_time - d["start_time"]
     print("total_time_seconds:", total_time)
     print("total_users:", len(set([u for u, t in d["response_bucket"]])))
-
+    print(f"current_users: {d['on_going_users']}")
     # Calculate total requests
     total_requests = sum(d["response_bucket"].values())
 
@@ -195,6 +195,7 @@ class MetricsCollector:
                 "status_bucket": self.status_bucket,
                 "max_users": self.max_users,
                 "ping_latency": self.ping_latency,
+                "on_going_users": self.on_going_users
             }, self.logging_function)
             self.logging_function("")
 
@@ -214,6 +215,7 @@ class MetricsCollector:
             "status_bucket": self.status_bucket,
             "max_users": self.max_users,
             "ping_latency": self.ping_latency,
+            "on_going_users": self.on_going_users
         }
         with open("final_report.pkl", "wb") as f:
             pickle.dump(data_to_pickle, f)
@@ -405,7 +407,7 @@ async def start_benchmark_session(args, user_def, logger=print):
         user_def, logger, args.session_time, ping_latency if args.ping_correction else 0
     )
     user_spawner = UserSpawner(
-        user_def, collector, args.max_users, target_time=time.time() + 0.1
+        user_def, collector, args.max_users, target_time=time.time() + args.ramp_up_time
     )
     asyncio.create_task(user_spawner.spawner_loop())
     asyncio.create_task(collector.report_loop())
