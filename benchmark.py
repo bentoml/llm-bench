@@ -132,8 +132,8 @@ log_queue = None
 log_process = None
 
 # Function to process log entries in the background
-def log_worker(queue, filename="log.csv"):
-    """Background worker that writes log entries to the CSV file."""
+def log_worker(queue, filename, write_to_mlrepo=True):
+    """Background worker that writes log entries to the JSONL file and ML Repo"""
     log_data = defaultdict(dict)
 
     while True:
@@ -155,10 +155,10 @@ def log_worker(queue, filename="log.csv"):
             if key == "Time":
                 if log_data:  # Write the previous group before resetting
                     write_to_json(log_data, filename)
-                    run.log_metrics({
-                            k.lower().replace(' ', '_').replace('.', '_').replace('(', '_').replace(')', '_').replace('/', ' per '): v 
-                               for k,v in log_data.items() if isinstance(v, float) or isinstance(v, int)
-                        }, step=int(value))
+                    if write_to_mlrepo:
+                        run.log_metrics({
+                                k: v for k,v in log_data.items() if isinstance(v, float) or isinstance(v, int)
+                            }, step=int(value))
                 log_data.clear()  # Clear for the new group of key-value pairs
 
             log_data[key] = value
@@ -206,6 +206,7 @@ if __name__ == "__main__":
     parser.add_argument("--session_time", type=float, default=None)
     parser.add_argument("--ping_correction", action="store_true")
     args = parser.parse_args()
+    run.log_params(vars(args))
     # Start the logging process
     start_logging_process()
     asyncio.run(start_benchmark_session(args, OpenAIChatStreaming, logger=logger))

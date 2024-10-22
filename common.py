@@ -13,8 +13,8 @@ import math
 def print_aggregations(d, logger):
     end_time = max([t for u, t in d["response_bucket"]])
     total_time = end_time - d["start_time"]
-    print("Total Time:", total_time)
-    print("Total Users:", len(set([u for u, t in d["response_bucket"]])))
+    print("total_time_seconds:", total_time)
+    print("total_users:", len(set([u for u, t in d["response_bucket"]])))
 
     # Calculate total requests
     total_requests = sum(d["response_bucket"].values())
@@ -87,38 +87,38 @@ def print_aggregations(d, logger):
     quantiles = [0, 50, 90, 95, 99, 100]
 
     # Print aggregations
-    logger(f"Total requests: {total_requests}")
-    logger(f"Average Request/s: {avg_requests_per_second:.2f}")
+    logger(f"total_requests: {total_requests}")
+    logger(f"average_requests_per_second: {avg_requests_per_second:.2f}")
 
     for q in quantiles:
         value = np.percentile(head_latencies, q)
-        logger(f"Response Time to first token (head_latency) q{q}: {value:.2f}")
+        logger(f"response_time_first_token_second_quantile_{q}: {value:.2f}")
 
     for q in quantiles:
         value = np.percentile(response_times, q)
-        logger(f"Response Time q{q}: {value:.2f}")
+        logger(f"response_time_second_quantile_{q}: {value:.2f}")
 
     for q in quantiles:
         value = np.percentile(list(avg_output_tokens_per_second_per_user.values()), q)
-        logger(f"Output Tokens/s per user q{q}: {value:.2f}")
+        logger(f"output_tokens_per_second_per_user_quantile_{q}: {value:.2f}")
 
     for q in quantiles:
         value = np.percentile(list(avg_input_tokens_per_second_per_user.values()), q)
-        logger(f"Input Tokens/s per user q{q}: {value:.2f}")
+        logger(f"input_tokens_per_second_per_user_quantile_{q}: {value:.2f}")
 
-    logger(f"Total Output Tokens/s (all users): {total_output_tokens_per_second:.2f}")
-    logger(f"Total Input Tokens/s (all users): {total_input_tokens_per_second:.2f}")
+    logger(f"total_output_tokens_per_second_all_users: {total_output_tokens_per_second:.2f}")
+    logger(f"total_input_tokens_per_second_all_users: {total_input_tokens_per_second:.2f}")
 
     for q in quantiles:
         value = np.percentile(input_tokens_per_request_flat, q)
-        logger(f"Input Tokens per request q{q}: {value:.2f}")
+        logger(f"input_tokens_per_request_quantile_{q}: {value:.2f}")
 
     for q in quantiles:
         value = np.percentile(output_tokens_per_request_flat, q)
-        logger(f"Output Tokens per request q{q}: {value:.2f}")
+        logger(f"output_tokens_per_request_quantile_{q}: {value:.2f}")
 
-    logger(f"Total Output Tokens: {total_output_tokens}")
-    logger(f"Total Input Tokens: {total_input_tokens}")
+    logger(f"total_output_tokens: {total_output_tokens}")
+    logger(f"total_input_tokens: {total_input_tokens}")
 
 
 class MetricsCollector:
