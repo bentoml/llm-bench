@@ -205,16 +205,21 @@ if __name__ == "__main__":
     parser.add_argument("--max_users", type=int, required=True)
     parser.add_argument("--session_time", type=float, default=None)
     parser.add_argument("--ping_correction", action="store_true")
-    parser.add_argument("--ramp_up_time", type=float, default=1)
+    parser.add_argument("--user_addition_count", type=float, default=1)
+    parser.add_argument("--user_addition_time", type=float, default=1)
     args = parser.parse_args()
     run.log_params(vars(args))
+    run.log_params({
+        'openai_endpoint': base_url,
+        "model_openai": MODEL,
+        "model_huggingface": MODEL_HF,
+    })
     # Start the logging process
     start_logging_process()
     asyncio.run(start_benchmark_session(args, OpenAIChatStreaming, logger=logger))
     # Stop the logging process
     stop_logging_process()
-    artifact_version = client.log_artifact(
-        ml_repo=TFY_ML_REPO,
+    artifact_version = run.log_artifact(
         name="results",
         artifact_paths=[
             ArtifactPath(src="log.jsonl"),

@@ -237,10 +237,12 @@ class UserSpawner:
         user_def,
         collector: MetricsCollector,
         target_user_count=None,
-        target_time=None,
+        user_addition_count=1,
+        user_addition_time=0,
     ):
         self.target_user_count = 1 if target_user_count is None else target_user_count
-        self.target_time = time.time() + 10 if target_time is None else target_time
+        self.user_addition_count = user_addition_count
+        self.user_addition_time = user_addition_time
 
         self.data_collector = collector
         self.user_def = user_def
@@ -327,21 +329,12 @@ class UserSpawner:
             if current_users == self.target_user_count:
                 await asyncio.sleep(0.1)
             elif current_users < self.target_user_count:
-                self.spawn_user()
-                sleep_time = max(
-                    (self.target_time - time.time())
-                    / (self.target_user_count - current_users),
-                    0,
-                )
-                await asyncio.sleep(sleep_time)
+                for _ in range(self.user_addition_count):
+                    self.spawn_user()
+                await asyncio.sleep(self.user_addition_time)
             elif current_users > self.target_user_count:
                 self.user_list.pop().cancel()
-                sleep_time = max(
-                    (time.time() - self.target_time)
-                    / (current_users - self.target_user_count),
-                    0,
-                )
-                await asyncio.sleep(sleep_time)
+                await asyncio.sleep(self.user_addition_time)
 
     async def aimd_loop(
         self,
@@ -407,7 +400,9 @@ async def start_benchmark_session(args, user_def, logger=print):
         user_def, logger, args.session_time, ping_latency if args.ping_correction else 0
     )
     user_spawner = UserSpawner(
-        user_def, collector, args.max_users, target_time=time.time() + args.ramp_up_time
+        user_def, collector, args.max_users,
+        user_addition_count=args.user_addition_count,
+        user_addition_time=args.user_addition_time
     )
     asyncio.create_task(user_spawner.spawner_loop())
     asyncio.create_task(collector.report_loop())
