@@ -205,7 +205,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_users", type=int, required=True)
     parser.add_argument("--session_time", type=float, default=None)
     parser.add_argument("--ping_correction", action="store_true")
-    parser.add_argument("--user_addition_count", type=float, default=1)
+    parser.add_argument("--user_addition_count", type=int, default=1)
     parser.add_argument("--user_addition_time", type=float, default=1)
     args = parser.parse_args()
     run.log_params(vars(args))
